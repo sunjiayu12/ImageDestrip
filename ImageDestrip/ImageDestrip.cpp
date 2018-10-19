@@ -21,12 +21,12 @@ void ImageDestrip::pushButton_OK_clicked() {
         QMessageBox::information(this, "Error", "No output folder specified. ");
         return;
     }
-    oneband_destrip();
+    if (ui.comboBox_mode->currentIndex() == 0)  oneband_destrip();
+    if (ui.comboBox_mode->currentIndex() == 1)  mulband_destrip();
 }
 
 void ImageDestrip::pushButton_src_clicked() {
     qfileName = QFileDialog::getOpenFileName(this, tr("Open Image"), ".", tr("tiff, tif (*.tiff *.tif"));
-    QMessageBox::information(this, "Info", "Open image successful.");
     ui.lineEditInput->setText(qfileName);
     ui.textEdit_log->append("Open image: " + qfileName);
     QTextCodec* code = QTextCodec::codecForName("gb2312");
@@ -44,8 +44,20 @@ void ImageDestrip::pushButton_dst_clicked() {
 void ImageDestrip::oneband_destrip() {
     // load image
     cv::Mat srcImg = cv::imread(fileName, CV_LOAD_IMAGE_ANYDEPTH);
-    height = srcImg.rows;
-    width = srcImg.cols;
+    // preprocessing
+    for (int i = 0; i < srcImg.rows; i++) {
+        srcImg.at<short>(i, 0) = srcImg.at<short>(i, 2);
+        srcImg.at<short>(i, 1) = srcImg.at<short>(i, 3);
+        srcImg.at<short>(i, srcImg.cols - 2) = srcImg.at<short>(i, srcImg.cols - 4);
+        srcImg.at<short>(i, srcImg.cols - 1) = srcImg.at<short>(i, srcImg.cols - 3);
+    }
+    for (int i = 0; i < srcImg.cols; i++) {
+        srcImg.at<short>(0, i) = srcImg.at<short>(2, i);
+        srcImg.at<short>(1, i) = srcImg.at<short>(3, i);
+        srcImg.at<short>(srcImg.rows - 2, i) = srcImg.at<short>(srcImg.rows - 4, i);
+        srcImg.at<short>(srcImg.rows - 1, i) = srcImg.at<short>(srcImg.rows - 3, i);
+    }
+
     // cut image
     ui.textEdit_log->append("Cutting image by " + QString::number(CutRows) + "*" + QString::number(CutCols));
     qApp->processEvents();
@@ -65,10 +77,9 @@ void ImageDestrip::oneband_destrip() {
     ui.textEdit_log->append("Destrip finished...");
     qApp->processEvents();
     // stitch
-    cv::Mat dstImg(height, width, CV_16U, cv::Scalar(0));
+    cv::Mat dstImg(srcImg.rows, srcImg.cols, CV_16U, cv::Scalar(0));
     Mosaic(vecPart, dstImg);
     ui.textEdit_log->append("Writing result begin.");
-    qApp->processEvents();
     cv::imwrite(dstDir + "/dstImg.tif", dstImg);
     ui.textEdit_log->append("Writing result finished.");
     qApp->processEvents();
@@ -79,46 +90,27 @@ void ImageDestrip::Division(cv::Mat& srcImg, vector<cv::Mat>& ceilImg) {
         QMessageBox::information(this, "Error", "Image size is 0 * 0. ");
         return;
     }
-    ui.textEdit_log->append("Size: " + QString::number(height) + ", " + QString::number(width));
-    qApp->processEvents();
+    ui.textEdit_log->append("Size: " + QString::number(srcImg.rows) + ", " + QString::number(srcImg.cols));
 
-    int ceil_height = height / CutRows;
-    int ceil_width = width / CutCols;
-    int ceil_down_height = height - (CutRows - 1) * ceil_height;
-    int ceil_right_width = width - (CutCols - 1) * ceil_width;
+    int ceil_height = srcImg.rows / CutRows;
+    int ceil_width = srcImg.cols / CutCols;
 
     ui.textEdit_log->append("Cut image begin...");
     qApp->processEvents();
-    for (int i = 0; i < CutRows - 1; i++) {
+
+    for (int i = 0; i < CutRows; i++) {
         for (int j = 0; j < CutCols; j++) {
-            if (j < CutCols - 1) {
-                cv::Rect rect(j * ceil_width, i * ceil_height, ceil_width, ceil_height);
-                ceilImg.push_back(srcImg(rect));
-            }
-            else {
-                cv::Rect rect((CutCols - 1) * ceil_width, i * ceil_height, ceil_right_width, ceil_height);
-                ceilImg.push_back(srcImg(rect));
-            }
-        }
-    }
-    for (int j = 0; j < CutCols; j++) {
-        if (j < CutCols - 1) {
-            cv::Rect rect(j * ceil_width, (CutRows - 1) * ceil_height, ceil_width, ceil_down_height);
-            ceilImg.push_back(srcImg(rect));
-        }
-        else {
-            cv::Rect rect((CutCols - 1) * ceil_width, (CutRows - 1) * ceil_height, ceil_right_width, ceil_down_height);
+            cv::Rect rect(j * ceil_width, i * ceil_height, ceil_width, ceil_height);
             ceilImg.push_back(srcImg(rect));
         }
     }
     ui.textEdit_log->append("Cut image finished. ");
     ui.textEdit_log->append("Number of blocks: " + QString::number(ceilImg.size()));
-    qApp->processEvents();
     ui.textEdit_log->append("Destrip done. ");
     qApp->processEvents();
 }
 
-vector<cv::Mat> ImageDestrip::FFT(cv::Mat src) {
+vector<cv::Mat> ImageDestrip::FFT(const cv::Mat& src) {
     int m = cv::getOptimalDFTSize(src.rows);
     int n = cv::getOptimalDFTSize(src.cols);
     
@@ -171,7 +163,7 @@ void ImageDestrip::Mask(vector<cv::Mat>& fftMat) {
     }
 }
 
-void ImageDestrip::Mosaic(vector<cv::Mat>& ceilImg, cv::Mat dst) {
+void ImageDestrip::Mosaic(vector<cv::Mat>& ceilImg, cv::Mat& dst) {
     if (ceilImg.empty()) {
         QMessageBox::information(this, "Error", "Mat vector is empty!");
         return;
@@ -198,6 +190,73 @@ void ImageDestrip::Mosaic(vector<cv::Mat>& ceilImg, cv::Mat dst) {
     }
 }
 
-void ImageDestrip::gdal2Mat(const char* fileName, vector<cv::Mat>& imgMat) {
+vector<cv::Mat> ImageDestrip::gdal2Mat() {
+    GDALAllRegister();
+    GDALDataset* poDataset = (GDALDataset*)GDALOpen(fileName.c_str(), GA_ReadOnly);
+    int bandNum = poDataset->GetRasterCount();
+    vector<cv::Mat> vecImg;
+    for (int i = 0; i < bandNum; i++) {
+        GDALRasterBand* poBand = poDataset->GetRasterBand(i + 1);
+        int rows = poBand->GetYSize();
+        int cols = poBand->GetXSize();
+        ushort* pBuf = new ushort[rows * cols];
+        poBand->RasterIO(GF_Read, 0, 0, cols, rows, pBuf, cols, rows, GDT_UInt16, 0, 0);
+        vecImg.push_back(cv::Mat(rows, cols, CV_16U, pBuf));
+    }
+    ui.textEdit_log->append("Multispectral data split succeed. ");
+    qApp->processEvents();
+    GDALClose(poDataset);
+    GDALDestroyDriverManager();
+    return vecImg;
+}
 
+void ImageDestrip::mat2gdal(const vector<cv::Mat>& vecImg) {
+    int rows = vecImg[0].rows;
+    int cols = vecImg[0].cols;
+
+    GDALAllRegister();
+    GDALDriver* poDriver = GetGDALDriverManager()->GetDriverByName("ENVI");
+    string tmp = dstDir + "/" + "restored.tif";
+    GDALDataset* poDataset = poDriver->Create(tmp.c_str(), cols, rows, vecImg.size(), GDT_UInt16, NULL);
+
+    GDALRasterBand* poBand = NULL;
+    ushort* ppafScan = new ushort[rows * cols];
+    cv::Mat tmpImg;
+
+    int nr = rows;
+    int nc = cols;
+    for (int i = 1; i <= vecImg.size(); i++) {
+        poBand = poDataset->GetRasterBand(i);
+        tmpImg = vecImg[i - 1];
+        if (tmpImg.isContinuous()) {
+            nc *= nr;
+            nr = 1;
+        }
+        for (int r = 0; r < nr; r++) {
+            int tmpI = r * cols;
+            ushort* p = tmpImg.ptr<ushort>(r);
+            for (int c = 0; c < nc; c++)  ppafScan[tmpI + c] = p[c];
+        }
+        poBand->RasterIO(GF_Write, 0, 0, cols, rows, ppafScan, cols, rows, GDT_UInt16, 0, 0);
+    }
+    delete[] ppafScan; ppafScan = NULL;
+    GDALClose(poDataset);
+    GDALDestroyDriverManager();
+}
+
+void ImageDestrip::mulband_destrip() {
+    vector<cv::Mat> vecImg = gdal2Mat();
+    ui.textEdit_log->append("imgMat size: " + QString::number(vecImg.size()));
+    for (int i = 0; i < vecImg.size(); i++) {
+        cv::imwrite(dstDir + "/" + to_string(i + 1) + ".tif", vecImg[i]);
+        vector<cv::Mat> planes = FFT(vecImg[i]);
+        ui.textEdit_log->append("-- Delete destrip noise...");
+        qApp->processEvents();
+        Mask(planes);
+        Ifft(vecImg[i], planes);
+        cv::imwrite(dstDir + "/" + to_string(i + 1) + "_cleared.tif", vecImg[i]);
+    }
+    ui.textEdit_log->append("Write finished. ");
+    mat2gdal(vecImg);
+    qApp->processEvents();
 }
