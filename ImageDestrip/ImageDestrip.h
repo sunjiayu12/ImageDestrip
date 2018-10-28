@@ -22,9 +22,6 @@
 
 using namespace std;
 
-const int CutRows = 5;
-const int CutCols = 5;
-
 class ImageDestrip : public QWidget
 {
     Q_OBJECT
@@ -39,11 +36,9 @@ public:
 
 public:
     // related destrip methods
-    void Division(cv::Mat& srcImg, vector<cv::Mat>& ceilImg);
     vector<cv::Mat> FFT(const cv::Mat& src);
     void Ifft(cv::Mat& src, vector<cv::Mat>& planes);
     void Mask(vector<cv::Mat>& fftMat);
-    void Mosaic(vector<cv::Mat>& ceilImg, cv::Mat& res);
 
 public:
     // Multispectrum
@@ -60,4 +55,5 @@ private:
     QString qfileName, qdstDir;
     string fileName, dstDir;
     string logFile;
+    size_t cutRows, cutCols;
 };

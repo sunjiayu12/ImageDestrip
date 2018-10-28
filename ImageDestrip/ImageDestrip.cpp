@@ -4,8 +4,8 @@ ImageDestrip::ImageDestrip(QWidget *parent)
     : QWidget(parent)
 {
     ui.setupUi(this);
-    qfileName = "";
-    qdstDir = "";
+    cutRows = 5;
+    cutCols = 5;
     ui.comboBox_mode->addItems({ "Single band", "Multi band" });
     connect(ui.pushButton_OK, SIGNAL(clicked()), this, SLOT(pushButton_OK_clicked()));
     connect(ui.pushButton_src, SIGNAL(clicked()), this, SLOT(pushButton_src_clicked()));
@@ -42,8 +42,23 @@ void ImageDestrip::pushButton_dst_clicked() {
 }
 
 void ImageDestrip::oneband_destrip() {
-    // load image
     cv::Mat srcImg = cv::imread(fileName, CV_LOAD_IMAGE_ANYDEPTH);
+    ui.textEdit_log->append("[Info] Image size: " + QString::number(srcImg.rows) + " * " + QString::number(srcImg.cols));
+    // automatically calculate patches
+    for (size_t i = 1; i != 10; i++) {
+        if (srcImg.rows % i == 0 && srcImg.rows / i < 8000) {
+            cutRows = i;
+            break;
+        }
+    }
+    for (size_t i = 1; i != 10; i++) {
+        if (srcImg.cols % i == 0 && srcImg.cols / i < 8000) {
+            cutCols = i;
+            break;
+        }
+    }
+    ui.textEdit_log->append("[Info] Image patches set to: " + QString::number(cutRows) + " * " + QString::number(cutCols));
+    qApp->processEvents();
     // preprocessing
     for (int i = 0; i < srcImg.rows; i++) {
         srcImg.at<short>(i, 0) = srcImg.at<short>(i, 2);
@@ -58,55 +73,26 @@ void ImageDestrip::oneband_destrip() {
         srcImg.at<short>(srcImg.rows - 1, i) = srcImg.at<short>(srcImg.rows - 3, i);
     }
 
-    // cut image
-    ui.textEdit_log->append("Cutting image by " + QString::number(CutRows) + "*" + QString::number(CutCols));
-    qApp->processEvents();
-    vector<cv::Mat> vecPart;
-    Division(srcImg, vecPart);
-    srcImg.release();
-    // fft, mask and ifft
-    ui.textEdit_log->append("Destrip begin...");
-    qApp->processEvents();
-    for (int i = 0; i < CutRows * CutCols; i++) {
-        vector<cv::Mat> planes = FFT(vecPart[i]);
-        ui.textEdit_log->append("-- Delete destrip noise...");
-        qApp->processEvents();
-        Mask(planes);
-        Ifft(vecPart[i], planes);
-    }
-    ui.textEdit_log->append("Destrip finished...");
-    qApp->processEvents();
-    // stitch
-    cv::Mat dstImg(srcImg.rows, srcImg.cols, CV_16U, cv::Scalar(0));
-    Mosaic(vecPart, dstImg);
-    ui.textEdit_log->append("Writing result begin.");
-    cv::imwrite(dstDir + "/dstImg.tif", dstImg);
-    ui.textEdit_log->append("Writing result finished.");
-    qApp->processEvents();
-}
-
-void ImageDestrip::Division(cv::Mat& srcImg, vector<cv::Mat>& ceilImg) {
-    if (srcImg.empty()) {
-        QMessageBox::information(this, "Error", "Image size is 0 * 0. ");
-        return;
-    }
-    ui.textEdit_log->append("Size: " + QString::number(srcImg.rows) + ", " + QString::number(srcImg.cols));
-
-    int ceil_height = srcImg.rows / CutRows;
-    int ceil_width = srcImg.cols / CutCols;
-
-    ui.textEdit_log->append("Cut image begin...");
-    qApp->processEvents();
-
-    for (int i = 0; i < CutRows; i++) {
-        for (int j = 0; j < CutCols; j++) {
-            cv::Rect rect(j * ceil_width, i * ceil_height, ceil_width, ceil_height);
-            ceilImg.push_back(srcImg(rect));
+    int singleRows = srcImg.rows / cutRows;
+    int singleCols = srcImg.cols / cutCols;
+    ui.textEdit_log->append("[Info] Destrip begin...");
+    qApp->processEvents(); 
+    for (int i = 0; i < cutRows; i++) {
+        for (int j = 0; j < cutCols; j++) {
+            cv::Mat imgROI = srcImg(cv::Rect(j * singleCols, i * singleRows, singleCols, singleRows));
+            ui.textEdit_log->append("[Info] Destrip part: (" + QString::number(i) + ", " + QString::number(j) + ")");
+            qApp->processEvents();
+            vector<cv::Mat> planes = FFT(imgROI);
+            Mask(planes);
+            Ifft(imgROI, planes);
         }
     }
-    ui.textEdit_log->append("Cut image finished. ");
-    ui.textEdit_log->append("Number of blocks: " + QString::number(ceilImg.size()));
-    ui.textEdit_log->append("Destrip done. ");
+    ui.textEdit_log->append("[Info] Destrip finished...");
+    qApp->processEvents();
+    ui.textEdit_log->append("[Info] Writing result begin. This may take a while...");
+    qApp->processEvents();
+    cv::imwrite(dstDir + "/dstImg.tif", srcImg);
+    ui.textEdit_log->append("[Info] Writing result finished.");
     qApp->processEvents();
 }
 
@@ -115,7 +101,7 @@ vector<cv::Mat> ImageDestrip::FFT(const cv::Mat& src) {
     int n = cv::getOptimalDFTSize(src.cols);
     
     cv::Mat padded;
-    cv::copyMakeBorder(src, padded, 0, m - src.rows, 0, n - src.cols, cv::BORDER_CONSTANT, cv::Scalar::all(0));
+    cv::copyMakeBorder(src, padded, 0, m - src.rows, 0, n - src.cols, cv::BORDER_WRAP);
 
     vector<cv::Mat> planes{ cv::Mat_<float>(padded), cv::Mat::zeros(padded.size(), CV_32F) };
     cv::Mat complexSrc;
@@ -137,56 +123,29 @@ void ImageDestrip::Ifft(cv::Mat& src, vector<cv::Mat>& planes) {
     qApp->processEvents();
     cv::idft(complexI, invFFT, cv::DFT_SCALE | cv::DFT_REAL_OUTPUT);
     invFFT.convertTo(invFFT, CV_16UC1);
-    src = invFFT(cv::Rect(0, 0, src.cols, src.rows));
+    invFFT(cv::Rect(0, 0, src.cols, src.rows)).copyTo(src);
 }
 
 void ImageDestrip::Mask(vector<cv::Mat>& fftMat) {
     cv::Mat mask(fftMat[0].size(), CV_32F, cv::Scalar::all(1));
     for (int i = mask.rows / 4; i < 3 * mask.rows / 4; i++) {
-        for (int j = 0; j < mask.cols / 50; j++) {
+        for (int j = 0; j < mask.cols / 15; j++) {
             mask.at<float>(i, j) = 0;
         }
-        for (int j = mask.cols - mask.cols / 50; j < mask.cols; j++) {
+        for (int j = 14 * mask.cols / 15; j < mask.cols; j++) {
             mask.at<float>(i, j) = 0;
         }
     }
     for (int j = mask.cols / 4; j < 3 * mask.cols / 4; j++) {
-        for (int i = 0; i < mask.rows / 50; i++) {
+        for (int i = 0; i < mask.rows / 15; i++) {
             mask.at<float>(i, j) = 0;
         }
-        for (int i = mask.rows - mask.rows / 50; i < mask.rows; i++) {
+        for (int i = 14 * mask.rows / 15; i < mask.rows; i++) {
             mask.at<float>(i, j) = 0;
         }
     }
     for (auto& img : fftMat) {
         img = img.mul(mask);
-    }
-}
-
-void ImageDestrip::Mosaic(vector<cv::Mat>& ceilImg, cv::Mat& dst) {
-    if (ceilImg.empty()) {
-        QMessageBox::information(this, "Error", "Mat vector is empty!");
-        return;
-    }
-    int singleHeight = ceilImg[0].rows;
-    int singleWidth = ceilImg[0].cols;
-    int totalHeight = CutRows * singleHeight;
-    int totalWidth = CutCols * singleWidth;
-
-    if (totalHeight != dst.rows || totalWidth != dst.cols) {
-        QMessageBox::information(this, "Error", "Image sequence and destination image size not matched!");
-        return;
-    }
-    ui.textEdit_log->append("Mosaic begin...");
-    int vecIdx = 0;
-    for (int i = 0; i < CutRows; i++) {
-        for (int j = 0; j < CutCols; j++) {
-            ui.textEdit_log->append("Copying x: " + QString::number(i) + ", y: " + QString::number(j) + " begin...");
-            cv::Mat imageROI = dst(cv::Rect(j * singleWidth, i * singleHeight, singleWidth, singleHeight));
-            ceilImg[vecIdx].copyTo(imageROI);
-            vecIdx++;
-            ui.textEdit_log->append("Copying x: " + QString::number(i) + ", y: " + QString::number(j) + " finished...");
-        }
     }
 }
 
@@ -247,6 +206,7 @@ void ImageDestrip::mat2gdal(const vector<cv::Mat>& vecImg) {
 void ImageDestrip::mulband_destrip() {
     vector<cv::Mat> vecImg = gdal2Mat();
     ui.textEdit_log->append("imgMat size: " + QString::number(vecImg.size()));
+
     for (int i = 0; i < vecImg.size(); i++) {
         cv::imwrite(dstDir + "/" + to_string(i + 1) + ".tif", vecImg[i]);
         vector<cv::Mat> planes = FFT(vecImg[i]);
