@@ -21,8 +21,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_ImageDestrip_t {
-    QByteArrayData data[5];
-    char stringdata0[82];
+    QByteArrayData data[9];
+    char stringdata0[172];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -32,14 +32,21 @@ struct qt_meta_stringdata_ImageDestrip_t {
 static const qt_meta_stringdata_ImageDestrip_t qt_meta_stringdata_ImageDestrip = {
     {
 QT_MOC_LITERAL(0, 0, 12), // "ImageDestrip"
-QT_MOC_LITERAL(1, 13, 21), // "pushButton_OK_clicked"
-QT_MOC_LITERAL(2, 35, 0), // ""
-QT_MOC_LITERAL(3, 36, 22), // "pushButton_src_clicked"
-QT_MOC_LITERAL(4, 59, 22) // "pushButton_dst_clicked"
+QT_MOC_LITERAL(1, 13, 23), // "startWorkThread_oneband"
+QT_MOC_LITERAL(2, 37, 0), // ""
+QT_MOC_LITERAL(3, 38, 23), // "startWorkThread_mulband"
+QT_MOC_LITERAL(4, 62, 13), // "sendImagePath"
+QT_MOC_LITERAL(5, 76, 18), // "sendResultSavePath"
+QT_MOC_LITERAL(6, 95, 24), // "on_pushButton_OK_clicked"
+QT_MOC_LITERAL(7, 120, 25), // "on_pushButton_src_clicked"
+QT_MOC_LITERAL(8, 146, 25) // "on_pushButton_dst_clicked"
 
     },
-    "ImageDestrip\0pushButton_OK_clicked\0\0"
-    "pushButton_src_clicked\0pushButton_dst_clicked"
+    "ImageDestrip\0startWorkThread_oneband\0"
+    "\0startWorkThread_mulband\0sendImagePath\0"
+    "sendResultSavePath\0on_pushButton_OK_clicked\0"
+    "on_pushButton_src_clicked\0"
+    "on_pushButton_dst_clicked"
 };
 #undef QT_MOC_LITERAL
 
@@ -49,17 +56,29 @@ static const uint qt_meta_data_ImageDestrip[] = {
        7,       // revision
        0,       // classname
        0,    0, // classinfo
-       3,   14, // methods
+       7,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
        0,       // flags
-       0,       // signalCount
+       4,       // signalCount
+
+ // signals: name, argc, parameters, tag, flags
+       1,    0,   49,    2, 0x06 /* Public */,
+       3,    0,   50,    2, 0x06 /* Public */,
+       4,    1,   51,    2, 0x06 /* Public */,
+       5,    1,   54,    2, 0x06 /* Public */,
 
  // slots: name, argc, parameters, tag, flags
-       1,    0,   29,    2, 0x08 /* Private */,
-       3,    0,   30,    2, 0x08 /* Private */,
-       4,    0,   31,    2, 0x08 /* Private */,
+       6,    0,   57,    2, 0x08 /* Private */,
+       7,    0,   58,    2, 0x08 /* Private */,
+       8,    0,   59,    2, 0x08 /* Private */,
+
+ // signals: parameters
+    QMetaType::Void,
+    QMetaType::Void,
+    QMetaType::Void, QMetaType::QString,    2,
+    QMetaType::Void, QMetaType::QString,    2,
 
  // slots: parameters
     QMetaType::Void,
@@ -75,13 +94,46 @@ void ImageDestrip::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id
         ImageDestrip *_t = static_cast<ImageDestrip *>(_o);
         Q_UNUSED(_t)
         switch (_id) {
-        case 0: _t->pushButton_OK_clicked(); break;
-        case 1: _t->pushButton_src_clicked(); break;
-        case 2: _t->pushButton_dst_clicked(); break;
+        case 0: _t->startWorkThread_oneband(); break;
+        case 1: _t->startWorkThread_mulband(); break;
+        case 2: _t->sendImagePath((*reinterpret_cast< QString(*)>(_a[1]))); break;
+        case 3: _t->sendResultSavePath((*reinterpret_cast< QString(*)>(_a[1]))); break;
+        case 4: _t->on_pushButton_OK_clicked(); break;
+        case 5: _t->on_pushButton_src_clicked(); break;
+        case 6: _t->on_pushButton_dst_clicked(); break;
         default: ;
         }
+    } else if (_c == QMetaObject::IndexOfMethod) {
+        int *result = reinterpret_cast<int *>(_a[0]);
+        {
+            typedef void (ImageDestrip::*_t)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&ImageDestrip::startWorkThread_oneband)) {
+                *result = 0;
+                return;
+            }
+        }
+        {
+            typedef void (ImageDestrip::*_t)();
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&ImageDestrip::startWorkThread_mulband)) {
+                *result = 1;
+                return;
+            }
+        }
+        {
+            typedef void (ImageDestrip::*_t)(QString );
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&ImageDestrip::sendImagePath)) {
+                *result = 2;
+                return;
+            }
+        }
+        {
+            typedef void (ImageDestrip::*_t)(QString );
+            if (*reinterpret_cast<_t *>(_a[1]) == static_cast<_t>(&ImageDestrip::sendResultSavePath)) {
+                *result = 3;
+                return;
+            }
+        }
     }
-    Q_UNUSED(_a);
 }
 
 const QMetaObject ImageDestrip::staticMetaObject = {
@@ -109,15 +161,41 @@ int ImageDestrip::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 3)
+        if (_id < 7)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 3;
+        _id -= 7;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 3)
+        if (_id < 7)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 3;
+        _id -= 7;
     }
     return _id;
+}
+
+// SIGNAL 0
+void ImageDestrip::startWorkThread_oneband()
+{
+    QMetaObject::activate(this, &staticMetaObject, 0, nullptr);
+}
+
+// SIGNAL 1
+void ImageDestrip::startWorkThread_mulband()
+{
+    QMetaObject::activate(this, &staticMetaObject, 1, nullptr);
+}
+
+// SIGNAL 2
+void ImageDestrip::sendImagePath(QString _t1)
+{
+    void *_a[] = { nullptr, const_cast<void*>(reinterpret_cast<const void*>(&_t1)) };
+    QMetaObject::activate(this, &staticMetaObject, 2, _a);
+}
+
+// SIGNAL 3
+void ImageDestrip::sendResultSavePath(QString _t1)
+{
+    void *_a[] = { nullptr, const_cast<void*>(reinterpret_cast<const void*>(&_t1)) };
+    QMetaObject::activate(this, &staticMetaObject, 3, _a);
 }
 QT_WARNING_POP
 QT_END_MOC_NAMESPACE
