@@ -36,6 +36,7 @@ public:
     vector<cv::Mat> FFT(const cv::Mat& src);
     void Ifft(cv::Mat& src, vector<cv::Mat>& planes);
     void Mask(vector<cv::Mat>& fftMat);
+    void PreProcess(cv::Mat& img);
 
 public:
     // Multispectrum

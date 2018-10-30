@@ -31,22 +31,6 @@ class ImageDestrip : public QWidget
 public:
     ImageDestrip(QWidget *parent = Q_NULLPTR);
 
-//public:
-//    // main process
-//    void oneband_destrip();
-//    void mulband_destrip();
-//
-//public:
-//    // related destrip methods
-//    vector<cv::Mat> FFT(const cv::Mat& src);
-//    void Ifft(cv::Mat& src, vector<cv::Mat>& planes);
-//    void Mask(vector<cv::Mat>& fftMat);
-//
-//public:
-//    // Multispectrum
-//    vector<cv::Mat> gdal2Mat();
-//    void mat2gdal(const vector<cv::Mat>& vecImg);
-
 public:
     void receiveImageSize(int, int);
     void receiveImagePatches(int, int);

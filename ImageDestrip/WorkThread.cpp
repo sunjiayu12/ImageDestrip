@@ -37,18 +37,7 @@ void WorkThread::oneband_destrip() {
     emit sendImagePatches(cutRows, cutCols);
 
     // preprocessing
-    for (int i = 0; i < srcImg.rows; i++) {
-        srcImg.at<short>(i, 0) = srcImg.at<short>(i, 2);
-        srcImg.at<short>(i, 1) = srcImg.at<short>(i, 3);
-        srcImg.at<short>(i, srcImg.cols - 2) = srcImg.at<short>(i, srcImg.cols - 4);
-        srcImg.at<short>(i, srcImg.cols - 1) = srcImg.at<short>(i, srcImg.cols - 3);
-    }
-    for (int i = 0; i < srcImg.cols; i++) {
-        srcImg.at<short>(0, i) = srcImg.at<short>(2, i);
-        srcImg.at<short>(1, i) = srcImg.at<short>(3, i);
-        srcImg.at<short>(srcImg.rows - 2, i) = srcImg.at<short>(srcImg.rows - 4, i);
-        srcImg.at<short>(srcImg.rows - 1, i) = srcImg.at<short>(srcImg.rows - 3, i);
-    }
+    PreProcess(srcImg);
 
     int singleRows = srcImg.rows / cutRows;
     int singleCols = srcImg.cols / cutCols;
@@ -177,6 +166,7 @@ void WorkThread::mulband_destrip() {
     emit sendMulBandMsg(vecImg.size());
 
     for (int i = 0; i < vecImg.size(); i++) {
+        PreProcess(vecImg[i]);
         vector<cv::Mat> planes = FFT(vecImg[i]);
         qApp->processEvents();
         Mask(planes);
@@ -185,4 +175,19 @@ void WorkThread::mulband_destrip() {
     emit sendWritingSignal();
     mat2gdal(vecImg);
     emit sendFinishSignal();
+}
+
+void WorkThread::PreProcess(cv::Mat& srcImg) {
+    for (int i = 0; i < srcImg.rows; i++) {
+        srcImg.at<short>(i, 0) = srcImg.at<short>(i, 2);
+        srcImg.at<short>(i, 1) = srcImg.at<short>(i, 3);
+        srcImg.at<short>(i, srcImg.cols - 2) = srcImg.at<short>(i, srcImg.cols - 4);
+        srcImg.at<short>(i, srcImg.cols - 1) = srcImg.at<short>(i, srcImg.cols - 3);
+    }
+    for (int i = 0; i < srcImg.cols; i++) {
+        srcImg.at<short>(0, i) = srcImg.at<short>(2, i);
+        srcImg.at<short>(1, i) = srcImg.at<short>(3, i);
+        srcImg.at<short>(srcImg.rows - 2, i) = srcImg.at<short>(srcImg.rows - 4, i);
+        srcImg.at<short>(srcImg.rows - 1, i) = srcImg.at<short>(srcImg.rows - 3, i);
+    }
 }
