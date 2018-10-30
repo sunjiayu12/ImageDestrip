@@ -177,12 +177,10 @@ void WorkThread::mulband_destrip() {
     emit sendMulBandMsg(vecImg.size());
 
     for (int i = 0; i < vecImg.size(); i++) {
-        cv::imwrite(dstDir + "/" + to_string(i + 1) + ".tif", vecImg[i]);
         vector<cv::Mat> planes = FFT(vecImg[i]);
         qApp->processEvents();
         Mask(planes);
         Ifft(vecImg[i], planes);
-        cv::imwrite(dstDir + "/" + to_string(i + 1) + "_cleared.tif", vecImg[i]);
     }
     emit sendWritingSignal();
     mat2gdal(vecImg);

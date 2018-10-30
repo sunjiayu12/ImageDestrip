@@ -10,6 +10,8 @@ ImageDestrip::ImageDestrip(QWidget *parent)
     thread = new QThread(this);
     workThread->moveToThread(thread);
 
+    thread->start();
+
     ui.comboBox_mode->addItems({ "Single band", "Multi band" });
     // data swap
     connect(this, &ImageDestrip::sendImagePath, workThread, &WorkThread::receiveImagePath);
@@ -27,11 +29,12 @@ ImageDestrip::ImageDestrip(QWidget *parent)
     // exec
     connect(this, &ImageDestrip::startWorkThread_oneband, workThread, &WorkThread::oneband_destrip);
     connect(this, &ImageDestrip::startWorkThread_mulband, workThread, &WorkThread::mulband_destrip);
+    // destroy
+    connect(this, &ImageDestrip::destroyed, this, &ImageDestrip::killSubThread);
 }
 // UI interface functions
 void ImageDestrip::on_pushButton_OK_clicked() {
-    if (thread->isRunning() == true)  return;
-    thread->start();
+    ui.textEdit_log->clear();
     ui.textEdit_log->append("[Info] Working threads started.");
     if (qfileName != "" && qdstDir != "") {
         emit sendImagePath(qfileName);
@@ -79,11 +82,6 @@ void ImageDestrip::receiveWritingSignal() {
 
 void ImageDestrip::receiveFinishSignal() {
     ui.textEdit_log->append("[Info] Writing result finished.");
-    // kill sub thread
-    if (thread->isRunning() == false)  return;
-    thread->quit();
-    thread->wait();
-    delete workThread;
 }
 
 void ImageDestrip::receiveFFTMsg(QString str) {
@@ -96,4 +94,11 @@ void ImageDestrip::receiveMulSplitMsg() {
 
 void ImageDestrip::receiveMulBandMsg(int size) {
     ui.textEdit_log->append("[Info] Band Count: " + QString::number(size));
+}
+
+void ImageDestrip::killSubThread() {
+    if (thread->isRunning() == false)  return;
+    thread->quit();
+    thread->wait();
+    delete workThread;
 }

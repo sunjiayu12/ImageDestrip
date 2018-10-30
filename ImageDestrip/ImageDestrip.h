@@ -58,6 +58,7 @@ public:
     // multispectral
     void receiveMulSplitMsg();
     void receiveMulBandMsg(int);
+    void killSubThread();
 
 private slots:
     void on_pushButton_OK_clicked();
